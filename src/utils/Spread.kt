@@ -1,77 +1,70 @@
 package utils
 
-/**
- * Describes the status about the spread from one tile to another.
- * @property from The tile to spread from
- * @property to The tile to spread to
- * @property distance The distance in steps from the starting tile to the "to" tile
- */
-data class SpreadStatus(val from: Vector, val to: Vector, val stepsFromStart: Int)
+data class SpreadStatus<N>(val from: NodeData<N>, val to: NodeData<N>)
+data class NodeData<N>(val node: N, val fullPath: List<N>)
 
-data class SpreadInstructions(
-    val startingPos: Vector,
-    val neighborhood: List<Vector>,
-    val canSpread: (status: SpreadStatus) -> Boolean,
-    val preSpread: (pos: Vector) -> Unit = {},
-    val onSpread: (status: SpreadStatus) -> Unit = {},
-    val postSpread: (pos: Vector) -> Unit = {},
+data class SpreadInstructions<N>(
+    val startingNode: N,
+    val canSpread: (status: SpreadStatus<N>) -> Boolean,
+    val preSpread: (nodeData: NodeData<N>) -> Unit = {},
+    val onSpread: (status: SpreadStatus<N>) -> Unit = {},
+    val postSpread: (nodeData: NodeData<N>) -> Unit = {},
 ) {
-    fun setStartingPos(pos: Vector) = copy(startingPos = pos)
-    fun setNeighborhood(neighborhood: List<Vector>) = copy(neighborhood = neighborhood)
-    fun setCanSpread(canSpread: (status: SpreadStatus) -> Boolean) = copy(canSpread = canSpread)
-    fun setPreSpread(preSpread: (pos: Vector) -> Unit) = copy(preSpread = preSpread)
-    fun setOnSpread(onSpread: (status: SpreadStatus) -> Unit) = copy(onSpread = onSpread)
-    fun setPostSpread(postSpread: (pos: Vector) -> Unit) = copy(postSpread = postSpread)
-    fun addCanSpreadRequirement(canSpread: (status: SpreadStatus) -> Boolean) =
+    fun setStartingPos(node: N) = copy(startingNode = node)
+    fun setCanSpread(canSpread: (status: SpreadStatus<N>) -> Boolean) = copy(canSpread = canSpread)
+    fun setPreSpread(preSpread: (nodeData: NodeData<N>) -> Unit) = copy(preSpread = preSpread)
+    fun setOnSpread(onSpread: (status: SpreadStatus<N>) -> Unit) = copy(onSpread = onSpread)
+    fun setPostSpread(postSpread: (nodeData: NodeData<N>) -> Unit) = copy(postSpread = postSpread)
+    fun addCanSpreadRequirement(canSpread: (status: SpreadStatus<N>) -> Boolean) =
         copy(canSpread = { status -> canSpread(status) && this.canSpread(status) })
 
-    fun addPreSpreadAction(preSpread: (pos: Vector) -> Unit) =
-        copy(preSpread = { pos -> preSpread(pos); this.preSpread(pos) })
+    fun addPreSpreadAction(preSpread: (nodeData: NodeData<N>) -> Unit) =
+        copy(preSpread = { preSpread(it); this.preSpread(it) })
 
-    fun addOnSpreadAction(onSpread: (status: SpreadStatus) -> Unit) =
-        copy(onSpread = { status -> onSpread(status); this.onSpread(status) })
+    fun addOnSpreadAction(onSpread: (status: SpreadStatus<N>) -> Unit) =
+        copy(onSpread = { onSpread(it); this.onSpread(it) })
 
-    fun addPostSpreadAction(postSpread: (pos: Vector) -> Unit) =
-        copy(postSpread = { pos -> postSpread(pos); this.postSpread(pos) })
+    fun addPostSpreadAction(postSpread: (nodeData: NodeData<N>) -> Unit) =
+        copy(postSpread = { postSpread(it); this.postSpread(it) })
 }
 
 
 /**
- * Recursively spread to the neighbors of the given tile.
+ * Recursively spread to the neighbors of the given node.
  *
- * Starting on the startingPos, call preSpread, then for every neighbor with a valid canSpread, recursively spread to
- * those. Finally, call postSpread on the startingPos.
+ * Starting on the startingNode, call preSpread, then for every neighbor with a valid canSpread, recursively spread to
+ * those. Finally, call postSpread on the startingNode.
  */
-fun <T> TileWorld<T>.depthFirstSpread(instructions: SpreadInstructions) {
-    fun neighborsTo(pos: Vector) = instructions.neighborhood.map { pos + it }
+fun <N> Graph<N>.depthFirstSpread(instructions: SpreadInstructions<N>) {
 
-    fun spread(pos: Vector, stepsFromStart: Int) {
-        instructions.preSpread(pos)
+    fun spread(nodeData: NodeData<N>) {
+        instructions.preSpread(nodeData)
 
-        for (neighbor in neighborsTo(pos)) {
-            val status = SpreadStatus(pos, neighbor, stepsFromStart)
+        for (neighbor in getNeighbors(nodeData.node)) {
+            val neighborData = NodeData(neighbor, nodeData.fullPath + neighbor)
+            val status = SpreadStatus(nodeData, neighborData)
             if (instructions.canSpread(status)) {
                 instructions.onSpread(status)
-                spread(neighbor, stepsFromStart + 1)
+                spread(neighborData)
             }
         }
 
-        instructions.postSpread(pos)
+        instructions.postSpread(nodeData)
     }
-    spread(instructions.startingPos, 0)
+    spread(NodeData(instructions.startingNode, listOf(instructions.startingNode)))
 }
 
 /**
- * Adds the requirement that you cannot spread to the same tile multiple times
+ * Adds the requirement that you cannot spread to the same node multiple times
  */
-fun <T> SpreadInstructions.nonRepeating(): SpreadInstructions {
-    val visited = mutableSetOf<Vector>()
-    return addPreSpreadAction { pos -> visited.add(pos) }
-        .addCanSpreadRequirement { status -> !visited.contains(status.to) }
+fun <N> SpreadInstructions<N>.nonRepeating(): SpreadInstructions<N> {
+    val visited = mutableSetOf<N>()
+    return addPreSpreadAction { nodeData -> visited.add(nodeData.node) }
+        .addCanSpreadRequirement { status -> !visited.contains(status.to.node) }
 }
 
 /**
  * Adds the requirement that you cannot spread to a position outside the map.
  */
-fun <T> SpreadInstructions.boundedTo(world: RectangularTileWorld<T>): SpreadInstructions =
-    addCanSpreadRequirement { status -> status.to isWithin world }
+fun SpreadInstructions<Vector>.boundedTo(world: RectangularTileWorld<*>): SpreadInstructions<Vector> =
+    addCanSpreadRequirement { status -> status.to.node isWithin world }
