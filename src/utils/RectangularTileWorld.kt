@@ -4,9 +4,9 @@ abstract class RectangularTileWorld<T> : TileWorld<T> {
     abstract val minPos: Vector
     abstract val maxPos: Vector
 
-    val xPositions = (minPos.intX..maxPos.intX)
-    val yPositions = (minPos.intY..maxPos.intY)
-    val positions = xPositions.flatMap { x -> yPositions.map { y -> Vector(x, y) } }
+    val xPositions get() = (minPos.intX..maxPos.intX)
+    val yPositions get() = (minPos.intY..maxPos.intY)
+    val positions get() = xPositions.flatMap { x -> yPositions.map { y -> Vector(x, y) } }
 
     fun forEach(action: (T) -> Unit) = positions.forEach { pos -> action(get(pos)) }
     fun forEachIndexed(action: (pos: Vector, T) -> Unit) = positions.forEach { pos -> action(pos, get(pos)) }
@@ -19,10 +19,10 @@ abstract class RectangularTileWorld<T> : TileWorld<T> {
 
     override fun toString(): String = toString { it.toString() }
     fun toString(elementTransformer: (T) -> String): String {
-        val elementSize = positions.map { get(it).toString().length }.maxOrNull() ?: 0
+        val elementSize = positions.map { elementTransformer(get(it)).length }.maxOrNull() ?: 0
         return yPositions.fold("") { acc, y ->
             acc + xPositions.fold("") { rowAcc, x ->
-                rowAcc + get(Vector(x, y)).toString().padEnd(elementSize + 1)
+                rowAcc + elementTransformer(get(Vector(x, y))).padEnd(elementSize + 1)
             } + "\n"
         }
     }
@@ -32,3 +32,12 @@ infix fun <T> Vector.isWithin(world: RectangularTileWorld<T>): Boolean =
     intY in world.minPos.intY..world.maxPos.intY && intX in world.minPos.intX..world.maxPos.intX
 
 infix fun <T> Vector.isNotWithin(world: RectangularTileWorld<T>): Boolean = !isWithin(world)
+
+fun <T> RectangularTileWorld<T>.asGraph(getNeighbors: (pos: Vector) -> Collection<Vector>): Graph<Vector> =
+    object : Graph<Vector> {
+        override val nodes: Collection<Vector> = positions
+        override fun getNeighbors(pos: Vector): Collection<Vector> = getNeighbors(pos)
+    }
+
+fun <T> RectangularTileWorld<T>.asGraph(neighborDeltas: Collection<Vector>): Graph<Vector> =
+    this.asGraph { pos -> neighborDeltas.map { pos + it }.filter { it isWithin this } }

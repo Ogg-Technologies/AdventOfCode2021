@@ -1,5 +1,7 @@
 package utils
 
+import java.util.*
+
 data class SpreadStatus<N>(val from: NodeData<N>, val to: NodeData<N>)
 data class NodeData<N>(val node: N, val fullPath: List<N>)
 
@@ -39,16 +41,13 @@ fun <N> Graph<N>.depthFirstSpread(instructions: SpreadInstructions<N>) {
 
     fun spread(nodeData: NodeData<N>) {
         instructions.preSpread(nodeData)
-
-        for (neighbor in getNeighbors(nodeData.node)) {
-            val neighborData = NodeData(neighbor, nodeData.fullPath + neighbor)
-            val status = SpreadStatus(nodeData, neighborData)
-            if (instructions.canSpread(status)) {
-                instructions.onSpread(status)
-                spread(neighborData)
+        getNeighbors(nodeData.node)
+            .map { SpreadStatus(nodeData, NodeData(it, nodeData.fullPath + it)) }
+            .filter { instructions.canSpread(it) }
+            .forEach {
+                instructions.onSpread(it)
+                spread(it.to)
             }
-        }
-
         instructions.postSpread(nodeData)
     }
     spread(NodeData(instructions.startingNode, listOf(instructions.startingNode)))
@@ -62,9 +61,3 @@ fun <N> SpreadInstructions<N>.nonRepeating(): SpreadInstructions<N> {
     return addPreSpreadAction { nodeData -> visited.add(nodeData.node) }
         .addCanSpreadRequirement { status -> !visited.contains(status.to.node) }
 }
-
-/**
- * Adds the requirement that you cannot spread to a position outside the map.
- */
-fun SpreadInstructions<Vector>.boundedTo(world: RectangularTileWorld<*>): SpreadInstructions<Vector> =
-    addCanSpreadRequirement { status -> status.to.node isWithin world }
