@@ -1,6 +1,6 @@
 package utils
 
-class Grid<T>(private val size: Vector, private val grid: Array<Array<T>>) : RectangularTileWorld<T>() {
+class Grid<T>(val size: Vector, private val grid: Array<Array<T>>) : RectangularTileWorld<T>() {
     companion object {
         inline operator fun <reified T> invoke(): Grid<T> {
             return Grid(Vector.zero, emptyArray())
