@@ -18,11 +18,14 @@ abstract class RectangularTileWorld<T> : TileWorld<T> {
     operator fun iterator(): Iterator<T> = positions.map { get(it) }.iterator()
 
     override fun toString(): String = toString { it.toString() }
-    fun toString(elementTransformer: (T) -> String): String {
-        val elementSize = positions.map { elementTransformer(get(it)).length }.maxOrNull() ?: 0
+    fun toString(elementTransformer: (T) -> String): String =
+        toStringIndexed { pos, element -> "$pos: ${elementTransformer(element)}" }
+
+    fun toStringIndexed(elementTransformer: (pos: Vector, T) -> String): String {
+        val elementSize = positions.maxOfOrNull { elementTransformer(it, get(it)).length } ?: 0
         return yPositions.fold("") { acc, y ->
             acc + xPositions.fold("") { rowAcc, x ->
-                rowAcc + elementTransformer(get(Vector(x, y))).padEnd(elementSize + 1)
+                rowAcc + elementTransformer(Vector(x, y), get(Vector(x, y))).padEnd(elementSize + 1)
             } + "\n"
         }
     }

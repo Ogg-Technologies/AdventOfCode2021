@@ -60,18 +60,21 @@ fun <N> Graph<N>.depthFirstSpread(instructions: SpreadInstructions<N>) {
     recursiveSpread(NodeData(instructions.startingNode, listOf(instructions.startingNode)))
 }
 
-fun <N> Graph<N>.prioritizedSpread(comparator: Comparator<NodeData<N>>, instructions: SpreadInstructions<N>) {
+fun <N, D: NodeData<N>> Graph<N>.prioritizedSpread(comparator: Comparator<D>, wrapData: (NodeData<N>) -> D, instructions: SpreadInstructions<N>) {
     val priorityQueue = PriorityQueue(comparator)
-    priorityQueue.add(NodeData(instructions.startingNode, listOf(instructions.startingNode)))
+    priorityQueue.add(wrapData(NodeData(instructions.startingNode, listOf(instructions.startingNode))))
 
     while (priorityQueue.isNotEmpty()) {
         val nodeData = priorityQueue.remove()
-        spread(nodeData, { priorityQueue.add(it) }, instructions)
+        spread(nodeData, { priorityQueue.add(wrapData(it)) }, instructions)
     }
 }
 
+fun <N> Graph<N>.simplePrioritizedSpread(comparator: Comparator<NodeData<N>>, instructions: SpreadInstructions<N>) =
+    prioritizedSpread(comparator, { it }, instructions)
+
 fun <N> Graph<N>.breadthFirstSpread(instructions: SpreadInstructions<N>) =
-    prioritizedSpread(comparing { it.fullPath.size }, instructions)
+    simplePrioritizedSpread(comparing { it.fullPath.size }, instructions)
 
 /**
  * Adds the requirement that you cannot spread to the same node multiple times
