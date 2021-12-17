@@ -6,7 +6,7 @@ abstract class RectangularTileWorld<T> : TileWorld<T> {
 
     val xPositions get() = (minPos.intX..maxPos.intX)
     val yPositions get() = (minPos.intY..maxPos.intY)
-    val positions get() = xPositions.flatMap { x -> yPositions.map { y -> Vector(x, y) } }
+    val positions get() = (xPositions product yPositions).map { it.toVector() }
 
     fun forEach(action: (T) -> Unit) = positions.forEach { pos -> action(get(pos)) }
     fun forEachIndexed(action: (pos: Vector, T) -> Unit) = positions.forEach { pos -> action(pos, get(pos)) }

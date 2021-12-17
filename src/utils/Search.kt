@@ -2,15 +2,11 @@ package utils
 
 import java.util.*
 
-fun <N> Graph<N>.breadthFirstSearch(start: N, end: N, getWeight: (SpreadStatus<N>) -> Double?) {
+fun <N> Graph<N>.DFSShortestPath(start: N, end: N): List<N>? =
+    dijkstraShortestPath(start, end) { _, _ -> 1.0 }
 
-    breadthFirstSpread(
-        SpreadInstructions(
-            startingNode = start,
-
-            )
-    )
-}
+fun <N> Graph<N>.dijkstraShortestPath(start: N, end: N, calculateDistance: (node: N, neighbor: N) -> Double): List<N>? =
+    aStarShortestPath(start, end, calculateDistance) { 0.0 }
 
 /**
  * Finds the shortest path using A*

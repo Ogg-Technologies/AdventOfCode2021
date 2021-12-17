@@ -55,3 +55,5 @@ data class Vector(
     val floatX: Float get() = x.toFloat()
     val floatY: Float get() = y.toFloat()
 }
+
+fun Pair<Number, Number>.toVector() = Vector(first, second)
